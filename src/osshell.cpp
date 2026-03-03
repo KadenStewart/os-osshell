@@ -98,8 +98,8 @@ bool fileExecutableExists(std::string file_path)
     bool exists = false;
     // check if `file_path` exists
     // if so, ensure it is not a directory and that it has executable permissions
-
-    return exists;
+    exists = access(file_path.c_str(), X_OK);
+    return exists == 0;
 }
 
 /*
