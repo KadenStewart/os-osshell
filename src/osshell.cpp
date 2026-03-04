@@ -29,83 +29,116 @@ int main (int argc, char **argv)
 
     // Welcome message
     printf("Welcome to OSShell! Please enter your commands ('exit' to quit).\n");
-    while (user_command != "exit") { // While the user has not entered exit as a command
-        std::cout << "OSShell> "; //print out the prompt for the user with no newline
-        std::cin >> user_command; // set user_command to input
-        std::cin.ignore(1000, '\n'); // ignore the rest of the line
-        // TD: add user_command to history. Might have to move this to avoid blank space being on history
-        if (user_command == history){ // if user entered user. 
-            // TD: display the history to a max of 128 most recent commands
+    while (true) { // While the user has not entered exit as a command
+        std::cout << "osshell> "; //print out the prompt for the user with no newline
+        if(!std::getline(std::cin, user_command)) { //get the user input for the next command
+            break; //if there is an error getting the user input quit that crap.
         }
-        //TD: else we will look through the directory
-            // TD See if it is in the list of commands
-                // TD if so execute and wait
-            // TD else it is not in the list
-                //TD if it is a blank space 
-                    //TD dont do anything just continue loop
-            
+        // Handle 2 special cases.
+        if (user_command == "exit") { // if user enters the command exit
+            break; // quit    
+        }
+        if (user_command == "history"){ // if user enters history 
+            for (int i = 0; i < history.size(); i++){
+                std::cout << "  " << (i + 1) << " " << history[i] << std::endl; // Print the history 
+            }
+            continue; // skip rest of loop but dont exit. 
+        }
 
-        
+        // Handle command history storage.
+        history.push_back(user_command); // store the user command in the history vector.
+        if (history.size() > 128) { // if the history is mmore than 128
+            history.erase(history.begin()); // remove oldest command
+        }
+        // Process commands for execution.
+        splitString(user_command, ' ', command_list); // split the command
+        if(command_list.empty()) { // if the command is empty
+            continue; // skip but dont quit
+        }
+        // seperate the initial command from the potential arguments. And path finding I guess.
+        std::string cmd = command_list[0];
+        std::string found_path = ""; //storage for path
+        for (int i = 0; i < os_path_list.size(); i++) { // loop through paths
+            std::string candidate = os_path_list[i] + "/" + cmd; // potential path to the command
+            if (fileExecutableExists(candidate)) { // if the command is found in the path
+                found_path = candidate; // store the path
+                break; // stop looking for the command
+            }    
+        }
+        if (found_path.empty()) { // if no path was found
+            std::cout << cmd << ": Error command not found" << std::endl; // yell at user
+            continue; // skip but dont quit
+        }
+        // we actually get to finally run the damn thing. 
+        pid_t pid = fork(); //fork this thing
+        if (pid < 0){
+            perror("fork");
+            freeArrayOfCharArrays(command_list_exec, command_list.size() + 1); // free the command list
+            command_list_exec = nullptr; // set the command list to null
+            continue; // skip but dont quit
+        }
+        if (pid == 0) {
+            execv(found_path.c_str(), command_list_exec); // execute the command
+            perror("execv"); // if execv returns, there was an error
+            _exit(127); // exit with error to yell at user.
+        }else {
+            int status = 0;
+            waitpid(pid, &status, 0); // wait for the prcess to finish
+        }
+        // Cleaning time
+        freeArrayOfCharArrays(command_list_exec, command_list.size() + 1); // free the command list
+        command_list_exec = nullptr; // set the command list to null
+
 
     }
 
-    // Repeat:
-    //  Print prompt for user input: "osshell> " (no newline)
-    //  Get user input for next command
-    //  If command is `exit` exit loop / quit program
-    //  If command is `history` print previous N commands
-    //  For all other commands, check if an executable by that name is in one of the PATH directories
-    //   If yes, execute it
-    //   If no, print error statement: "<command_name>: Error command not found" (do include newline)
 
-
-
-    /************************************************************************************
-     *   Example code - remove in actual program                                        *
-     ************************************************************************************/
-    // Shows how to loop over the directories in the PATH environment variable
-    int i;
-    for (i = 0; i < os_path_list.size(); i++)
-    {
-        printf("PATH[%2d]: %s\n", i, os_path_list[i].c_str());
-    }
-    printf("------\n");
+    // /************************************************************************************
+    //  *   Example code - remove in actual program                                        *
+    //  ************************************************************************************/
+    // // Shows how to loop over the directories in the PATH environment variable
+    // int i;
+    // for (i = 0; i < os_path_list.size(); i++)
+    // {
+    //     printf("PATH[%2d]: %s\n", i, os_path_list[i].c_str());
+    // }
+    // printf("------\n");
     
-    // Shows how to split a command and prepare for the execv() function
-    std::string example_command = "ls -lh";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
+    // // Shows how to split a command and prepare for the execv() function
+    // std::string example_command = "ls -lh";
+    // splitString(example_command, ' ', command_list);
+    // vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
+    // // use `command_list_exec` in the execv() function rather than looping and printing
+    // i = 0;
+    // while (command_list_exec[i] != NULL)
+    // {
+    //     printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
+    //     i++;
+    // }
+    // // free memory for `command_list_exec`
+    // freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
+    // printf("------\n");
 
-    // Second example command - reuse the `command_list` and `command_list_exec` variables
-    example_command = "echo \"Hello world\" I am alive!";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-    /************************************************************************************
-     *   End example code                                                               *
-     ************************************************************************************/
+    // // Second example command - reuse the `command_list` and `command_list_exec` variables
+    // example_command = "echo \"Hello world\" I am alive!";
+    // splitString(example_command, ' ', command_list);
+    // vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
+    // // use `command_list_exec` in the execv() function rather than looping and printing
+    // i = 0;
+    // while (command_list_exec[i] != NULL)
+    // {
+    //     printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
+    //     i++;
+    // }
+    // // free memory for `command_list_exec`
+    // freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
+    // printf("------\n");
+    // /************************************************************************************
+    //  *   End example code                                                               *
+    //  ************************************************************************************/
 
 
-    return 0;
+    // return 0;
 }
 
 /*
