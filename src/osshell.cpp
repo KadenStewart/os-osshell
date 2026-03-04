@@ -29,9 +29,24 @@ int main (int argc, char **argv)
 
     // Welcome message
     printf("Welcome to OSShell! Please enter your commands ('exit' to quit).\n");
-    while (user_command != "exit") {
+    while (user_command != "exit") { // While the user has not entered exit as a command
         std::cout << "OSShell> "; //print out the prompt for the user with no newline
+        std::cin >> user_command; // set user_command to input
         std::cin.ignore(1000, '\n'); // ignore the rest of the line
+        // TD: add user_command to history. Might have to move this to avoid blank space being on history
+        if (user_command == history){ // if user entered user. 
+            // TD: display the history to a max of 128 most recent commands
+        }
+        //TD: else we will look through the directory
+            // TD See if it is in the list of commands
+                // TD if so execute and wait
+            // TD else it is not in the list
+                //TD if it is a blank space 
+                    //TD dont do anything just continue loop
+            
+
+        
+
     }
 
     // Repeat:
