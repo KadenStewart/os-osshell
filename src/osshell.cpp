@@ -29,6 +29,10 @@ int main (int argc, char **argv)
 
     // Welcome message
     printf("Welcome to OSShell! Please enter your commands ('exit' to quit).\n");
+    while (user_command != "exit") {
+        std::cout << "OSShell> "; //print out the prompt for the user with no newline
+        std::cin.ignore(1000, '\n'); // ignore the rest of the line
+    }
 
     // Repeat:
     //  Print prompt for user input: "osshell> " (no newline)
