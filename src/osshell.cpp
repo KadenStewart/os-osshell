@@ -6,6 +6,8 @@
 #include <vector>
 #include <filesystem>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 
 bool fileExecutableExists(std::string file_path);
 void splitString(std::string text, char d, std::vector<std::string>& result);
