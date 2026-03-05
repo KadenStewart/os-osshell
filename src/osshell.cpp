@@ -27,7 +27,7 @@ int main (int argc, char **argv)
     // Create variables for storing command user types
     std::string user_command;               // to store command user types in
     std::vector<std::string> command_list;  // to store `user_command` split into its variour parameters
-    char **command_list_exec;               // to store `command_list` converted to an array of character arrays
+    char **command_list_exec = nullptr;               // to store `command_list` converted to an array of character arrays
 
     // Welcome message
     printf("Welcome to OSShell! Please enter your commands ('exit' to quit).\n");
@@ -42,9 +42,12 @@ int main (int argc, char **argv)
         }
         if (user_command == "history"){ // if user enters history 
             for (int i = 0; i < history.size(); i++){
-                std::cout << "  " << (i + 1) << " " << history[i] << std::endl; // Print the history 
+                std::cout << "  " << (i + 1) << ": " << history[i] << std::endl; // Print the history 
             }
             continue; // skip rest of loop but dont exit. 
+        }
+        if (user_command.empty()) {
+            continue;  
         }
 
         // Handle command history storage.
@@ -72,6 +75,9 @@ int main (int argc, char **argv)
             continue; // skip but dont quit
         }
         // we actually get to finally run the damn thing. 
+        command_list[0] = found_path; // replace the command with the path to the command for execv
+        vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec); // convert
+
         pid_t pid = fork(); //fork this thing
         if (pid < 0){
             perror("fork");
@@ -240,6 +246,7 @@ void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***
 */
 void freeArrayOfCharArrays(char **array, size_t array_length)
 {
+    if (array == NULL) return;
     int i;
     for (i = 0; i < array_length; i++)
     {
