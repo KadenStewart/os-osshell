@@ -8,12 +8,14 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <fstream>
 
 bool fileExecutableExists(std::string file_path);
 void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
-
+void loadHistory(std::vector<std::string>& history);
+void saveHistory(const std::vector<std::string>& history);
 int main (int argc, char **argv)
 {
     // Get list of paths to binary executables
@@ -23,6 +25,7 @@ int main (int argc, char **argv)
 
     // Create list to store history
     std::vector<std::string> history;
+    loadHistory(history); // Load existing history from file
 
     // Create variables for storing command user types
     std::string user_command;               // to store command user types in
@@ -34,18 +37,15 @@ int main (int argc, char **argv)
     while (true) { // While the user has not entered exit as a command
         std::cout << "osshell> "; //print out the prompt for the user with no newline
         if(!std::getline(std::cin, user_command)) { //get the user input for the next command
+            saveHistory(history); // Save before quitting
             break; //if there is an error getting the user input quit that crap.
         }
         // Handle 2 special cases.
         if (user_command == "exit") { // if user enters the command exit
+            saveHistory(history); // Save before quitting
             break; // quit    
         }
-        if (user_command == "history"){ // if user enters history 
-            for (int i = 0; i < history.size(); i++){
-                std::cout << "  " << (i + 1) << ": " << history[i] << std::endl; // Print the history 
-            }
-            continue; // skip rest of loop but dont exit. 
-        }
+
         if (user_command.empty()) {
             continue;  
         }
@@ -60,9 +60,61 @@ int main (int argc, char **argv)
         if(command_list.empty()) { // if the command is empty
             continue; // skip but dont quit
         }
+        // 2. Handle History Command
+        if (command_list[0] == "history") {
+            if (command_list.size() == 1) {
+                // Case: "history" (print all)
+                for (int i = 0; i < history.size(); i++) {
+                    std::cout << "  " << (i + 1) << ": " << history[i] << std::endl;
+                }
+            } 
+            else if (command_list.size() == 2) {
+                if (command_list[1] == "clear") {
+                    // Case: "history clear"
+                    history.clear();
+                } else {
+                    // Case: "history <number>" - Validate if it's a positive integer
+                    std::string arg = command_list[1];
+                    bool is_numeric = !arg.empty();
+                    for (char c : arg) {
+                        if (!isdigit(c)) is_numeric = false;
+                    }
+
+                    if (is_numeric) {
+                        int num = std::atoi(arg.c_str());
+                        if (num > 0) {
+                            int start = (num >= history.size()) ? 0 : history.size() - num;
+                            for (int i = start; i < history.size(); i++) {
+                                std::cout << "  " << (i + 1) << ": " << history[i] << std::endl;
+                            }
+                        } else {
+                            std::cout << "Error: history expects an integer > 0 (or 'clear')" << std::endl;
+                        }
+                    } else {
+                        std::cout << "Error: history expects an integer > 0 (or 'clear')" << std::endl;
+                    }
+                }
+            } else {
+                // Too many arguments
+                std::cout << "Error: history expects an integer > 0 (or 'clear')" << std::endl;
+            }
+            continue; // Skip the rest of the loop for any history command
+        }
+
         // seperate the initial command from the potential arguments. And path finding I guess.
         std::string cmd = command_list[0];
         std::string found_path = ""; //storage for path
+        // Check if the command is a direct path (starts with . or /)
+        if (cmd[0] == '.' || cmd[0] == '/') {
+            if (fileExecutableExists(cmd)) {
+                found_path = cmd;
+            }
+            else{
+            std::cout << cmd << ": Error command not found" << std::endl; // yell at user
+            continue; // skip but dont quit
+            }
+        }
+        else{
         for (int i = 0; i < os_path_list.size(); i++) { // loop through paths
             std::string candidate = os_path_list[i] + "/" + cmd; // potential path to the command
             if (fileExecutableExists(candidate)) { // if the command is found in the path
@@ -70,6 +122,7 @@ int main (int argc, char **argv)
                 break; // stop looking for the command
             }    
         }
+            }
         if (found_path.empty()) { // if no path was found
             std::cout << cmd << ": Error command not found" << std::endl; // yell at user
             continue; // skip but dont quit
@@ -256,4 +309,25 @@ void freeArrayOfCharArrays(char **array, size_t array_length)
         }
     }
     delete[] array;
+}
+
+void loadHistory(std::vector<std::string>& history) {
+    std::ifstream infile(".osshell_history");
+    std::string line;
+    while (std::getline(infile, line)) {
+        if (!line.empty()) {
+            history.push_back(line);
+        }
+    }
+    // Keep only the last 128 if the file was larger
+    while (history.size() > 128) {
+        history.erase(history.begin());
+    }
+}
+
+void saveHistory(const std::vector<std::string>& history) {
+    std::ofstream outfile(".osshell_history");
+    for (const auto& cmd : history) {
+        outfile << cmd << "\n";
+    }
 }
